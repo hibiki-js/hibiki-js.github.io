@@ -9,9 +9,6 @@ on:
         default: main
   repository_dispatch:
     types: [deploy-docs]
-  schedule:
-    # Keep the org site in sync if hibiki main docs change without a token trigger
-    - cron: "0 */6 * * *"
   push:
     branches: [main]
     paths:
