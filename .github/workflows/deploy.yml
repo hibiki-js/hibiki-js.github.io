@@ -1,0 +1,63 @@
+name: Deploy docs
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: hibiki git ref to build
+        required: false
+        default: main
+  repository_dispatch:
+    types: [deploy-docs]
+  schedule:
+    # Keep the org site in sync if hibiki main docs change without a token trigger
+    - cron: "0 */6 * * *"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/deploy.yml"
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Hibiki
+        uses: actions/checkout@v7
+        with:
+          repository: hibiki-js/hibiki
+          ref: ${{ github.event.client_payload.ref || github.event.inputs.ref || 'main' }}
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm docs:build
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: docs/.vitepress/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
